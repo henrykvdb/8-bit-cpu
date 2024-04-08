@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from enum import Enum
 import enum
 import re
@@ -19,13 +20,14 @@ class AluCode(Enum):
 #   NAME    CODE
     WADD    = 0
     WSUB    = 1
-    WINC    = 2
-    NOP     = 3
+    WINC    = 2 # TODO - wire in HW
+    NOP     = 3 # TODO - wire in HW
     WAND    = 4
     WOR     = 5
     WXOR    = 6
     WLOAD   = 7
 
+"""Registers of the CPU"""
 class Reg(Enum):
     @enum.nonmember
     class RegsCapabilities:
@@ -129,9 +131,56 @@ class InstructionStep:
     rst = self.rst
 
 """Full instruction"""
-class Instruction:
-    def __init__(self, name: str, steps: [InstructionStep], arg:Reg):
-        assert len(steps) <= 16
-        self.name = name
-        self.steps = steps
-        self.arg = arg
+class Instruction(ABC):
+    @property
+    @abstractmethod
+    def name(self):
+       raise NotImplementedError("Instruction not implemented correctly")
+    
+    @property
+    @abstractmethod
+    def arg(self):
+       raise NotImplementedError("Instruction not implemented correctly")
+
+    @abstractmethod  # Decorator to define an abstract method
+    def run(self, flags):
+       raise NotImplementedError("Instruction not implemented correctly")
+
+
+"""
+Helper functions for defining instructions
+=> to make sure all conditional branches are balanced
+"""
+
+def balanced_yield(idx, lists):
+    # Yield selected list items
+    for x in lists[idx]:
+        yield x
+        
+    # pad to max branch length
+    max_len = max(len(x) for x in lists )
+    nops = max_len - len(lists[idx])
+    for x in range(nops):
+        yield InstructionStep(alu_op=AluCode.NOP)
+    
+def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=InstructionStep(alu_op=AluCode.NOP)):
+    options = [_if00, _if01, _if10, _if11]
+    for i in range(4):
+        if not options[i]:
+            options[i] = _else
+    yield from balanced_yield(flags, options)
+    
+def if_zero_flag(flags, _if, _else):
+    yield from if_flag(flags, _if01=_if, _if11=_if, _else=_else)
+    
+def if_carry_flag(flags, _if, _else):
+    yield from if_flag(flags, _if10=_if, _if11=_if, _else=_else)
+    
+def if_both_flag(flags, _if, _else):
+    yield from if_flag(flags, _if11=_if, _else=_else)
+
+def if_always(flags, _if, _else):
+    yield from if_flag(flags, _else=_if)
+
+def if_never(flags, _if, _else):
+    yield from if_flag(flags, _else=_else)

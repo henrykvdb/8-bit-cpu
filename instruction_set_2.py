@@ -8,78 +8,154 @@ instructions = []
 from dataclasses import dataclass
 from typing import Callable
 
-def balanced_yield(idx, lists):
-    # Yield selected list items
-    for x in lists[idx]:
-        yield x
-        
-    # pad to max branch length
-    max_len = max(len(x) for x in lists )
-    nops = max_len - len(lists[idx])
-    for x in range(nops):
-        yield -1
+instructions = []
+
+"""Core instructions; All possible ALU operations, with options for writeback"""
+
+class CoreInstruction(Instruction):
+    def __init__(self, alu_code, src, wb):
+       self.alu_code = alu_code
+       self.src = src
+       self.wb = wb
+
+    @property
+    def name(self):
+      instr_name = f"{self.alu_code}"
+      if self.wb: instr_name += "WB"
+      return instr_name
     
-def if_zero(flags, _if, _else):
-    idx = 0 if (flags & 1 == 1) else 1
-    yield from balanced_yield(idx, [_if, _else])
+    @property
+    def arg(self):
+       return str(self.src)
 
-def some_instruction(flags):
-    yield 0
-    yield 1
-    yield from if_zero(flags, 
-      _if=[2, 3],
-      _else=[12, 13, 14]
-    )
-    yield 4
-    yield 5
+    def run(self, flags):
+      yield InstructionStep(Args.LD_INSTR)
+      if self.src == Reg.IMM or self.src == Reg.REGS_OF_IMM:
+        yield InstructionStep(Args.INC_PC)
+        yield InstructionStep(Args.LD_IMM)
 
-print(list(some_instruction(1)))
+      # Perform operation
+      yield InstructionStep(Args.fromRegs(self.src, Reg.W), alu_code)
+
+      # Writeback (optional)
+      if self.wb:
+        yield InstructionStep(Args.fromRegs(Reg.W, src))
+      
+      # Increment program counter for next instruction
+      yield InstructionStep(Args.INC_PC)
+      yield InstructionStep(rst=True)
+
+# Create base ALU instructions
+for wb in [False, True]: #writeback
+  for alu_code in AluCode:
+    for src in Reg:
+      # Skip invalid
+      if src == Reg.W: continue
+      if not src.value.can_src: continue
+      if wb and not src.value.can_dst: continue
+      if wb and alu_code == AluCode.WLOAD: continue
+      if alu_code == AluCode.NOP: continue
+      if alu_code == AluCode.WINC:
+         if src == Reg.PC_L or src == Reg.PC_H: continue
+
+      # Create instruction
+      #print(src)
+      instructions.append(CoreInstruction(alu_code, src, wb))
+
+
+"""Store instructions; Write back accumulator W to any register"""
+class StoreInstruction(Instruction):
+    def __init__(self, dst):
+       self.dst = dst
+
+    @property
+    def name(self):
+      return "WSTORE"
     
+    @property
+    def arg(self):
+      return str(self.dst)
 
-def run_instruction(flags: int, step: Callable[[InstructionStep], None]):
-    step(InstructionStep(Args.LD_INSTR))
-    step(InstructionStep(Args.fromRegs(Reg.REGS_OF_SP, Reg.W), AluCode.WINC))
-    if_zero(flags=flags,
-        _if=[step(InstructionStep(Args.fromRegs(Reg.W, Reg.REGS_OF_SP)))],
-        _else=[step(InstructionStep(alu_op=AluCode.NOP))]
-    )
-    #if flags & 1:
-    #  step(InstructionStep(Args.fromRegs(Reg.W, Reg.REGS_OF_SP)))
-    step(InstructionStep(Args.INC_PC))
-    step(InstructionStep(rst=True))
+    def run(self, flags):
+      yield InstructionStep(Args.LD_INSTR)
+      if self.dst == Reg.IMM or self.dst == Reg.REGS_OF_IMM:
+        yield InstructionStep(Args.INC_PC)
+        yield InstructionStep(Args.LD_IMM)
+
+      # Writeback & incr PC
+      yield InstructionStep(Args.fromRegs(Reg.W, self.dst))
+      yield InstructionStep(Args.INC_PC)
+      yield InstructionStep(rst=True)
+
+# Create STORE instructions
+for dst in Reg:
+  if dst == Reg.W: continue
+  if not dst.value.can_dst: continue
+  instructions.append(StoreInstruction(dst))
+
+"""Create (conditional) full JMP instruction"""
+
+class CondJmpInstruction(Instruction):
+    def __init__(self, name: str, condition_generator):
+       self._name = name
+       self.condition_generator = condition_generator
+
+    @property
+    def name(self):
+      return self._name
+    
+    @property
+    def arg(self):
+      return "IMM16"
+
+    def run(self, flags):
+      yield InstructionStep(Args.LD_INSTR)
+      yield InstructionStep(Args.INC_PC)
+      yield InstructionStep(Args.LD_IMM)
+      yield InstructionStep(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD) # LD 1st part in W reg
+      yield InstructionStep(Args.INC_PC)
+
+      yield from self.condition_generator(flags,
+        _if=[
+            # JMP, perfor, remainder of JmpInstruction
+            InstructionStep(Args.LD_IMM), # LD 2nd part in IMM reg
+            InstructionStep(Args.fromRegs(Reg.W, Reg.PC_L)),
+            InstructionStep(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD),
+            InstructionStep(Args.fromRegs(Reg.W, Reg.PC_H)),
+            InstructionStep(rst=True),
+        ],
+        _else=[
+            # No JMP, increment PC and continue
+            InstructionStep(Args.INC_PC),
+            InstructionStep(rst=True)
+        ]
+      )
+
+instructions.append(CondJmpInstruction("JMP" , if_always))
+instructions.append(CondJmpInstruction("JMPZ", if_zero_flag))
+instructions.append(CondJmpInstruction("JMPC", if_carry_flag))
+
+"""VERIFICATION STEP"""
+for instr in instructions:
+  for flags in range(4):
+    instr.run(flags)
 
 
-def generate_table():
-    big_table = []
+"""LOG ALL INSTRUCTIONS"""
+log = True
+log_detail = False
+if log:
+  for idx, instr in enumerate(instructions):
+    if log_detail:
+      print(f"======= {idx:03d} =======")
+      print(f"{instr.name} {instr.arg}")
+      print(f"{Reg.W} {alu_code.symbol()}= {src}")
+      print(f"===================")
+      print(f"\x1B[3mi: {"ctrl":8} move\x1B[0m")
+      for step_idx, step in enumerate(instr.run(0)):
+        print(f"{step_idx}: {step}")
+      print()
+    else:
+      print(f"{idx:03d} | {instr.name:7} {instr.arg}")
 
-    step_bits = 4
-    flag_bits = 2
-    big_table.append([])
-
-    for flags in range(2 ** flag_bits):
-        steps = []
-
-        def step(s: InstructionStep):
-            steps.append(s)
-            assert len(steps) < 2 ** step_bits
-
-        run_instruction(flags, step)
-        #while len(steps) < 2 ** step_bits:
-        #    steps.append(InstructionStep("NOP"))
-
-        big_table[-1].append(steps)
-
-    return big_table
-
-
-def main():
-    table = generate_table()
-
-    #for line in table:
-    #    print("------")
-    #    for subline in line:
-    #        print(subline)
-
-
-if __name__ == '__main__':
-    main()
+  print(f"Used {100*len(instructions)/256:.1f}% of instructions")
