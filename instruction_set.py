@@ -29,21 +29,21 @@ class CoreInstruction(Instruction):
        return str(self.src)
 
     def run(self, flags):
-      yield InstructionStep(Args.LD_INSTR)
+      yield Step(Args.LD_INSTR)
       if self.src == Reg.IMM or self.src == Reg.REGS_OF_IMM:
-        yield InstructionStep(Args.INC_PC)
-        yield InstructionStep(Args.LD_IMM)
+        yield Step(Args.INC_PC)
+        yield Step(Args.LD_IMM)
 
       # Perform operation
-      yield InstructionStep(Args.fromRegs(self.src, Reg.W), alu_code)
+      yield Step(Args.fromRegs(self.src, Reg.W), alu_code)
 
       # Writeback (optional)
       if self.wb:
-        yield InstructionStep(Args.fromRegs(Reg.W, src))
+        yield Step(Args.fromRegs(Reg.W, src))
       
       # Increment program counter for next instruction
-      yield InstructionStep(Args.INC_PC)
-      yield InstructionStep(rst=True)
+      yield Step(Args.INC_PC)
+      yield Step(rst=True)
 
 # Create base ALU instructions
 for wb in [False, True]: #writeback
@@ -77,15 +77,15 @@ class StoreInstruction(Instruction):
       return str(self.dst)
 
     def run(self, flags):
-      yield InstructionStep(Args.LD_INSTR)
+      yield Step(Args.LD_INSTR)
       if self.dst == Reg.IMM or self.dst == Reg.REGS_OF_IMM:
-        yield InstructionStep(Args.INC_PC)
-        yield InstructionStep(Args.LD_IMM)
+        yield Step(Args.INC_PC)
+        yield Step(Args.LD_IMM)
 
       # Writeback & incr PC
-      yield InstructionStep(Args.fromRegs(Reg.W, self.dst))
-      yield InstructionStep(Args.INC_PC)
-      yield InstructionStep(rst=True)
+      yield Step(Args.fromRegs(Reg.W, self.dst))
+      yield Step(Args.INC_PC)
+      yield Step(rst=True)
 
 # Create STORE instructions
 for dst in Reg:
@@ -109,25 +109,25 @@ class CondJmpInstruction(Instruction):
       return "IMM16"
 
     def run(self, flags):
-      yield InstructionStep(Args.LD_INSTR)
-      yield InstructionStep(Args.INC_PC)
-      yield InstructionStep(Args.LD_IMM)
-      yield InstructionStep(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD) # LD 1st part in W reg
-      yield InstructionStep(Args.INC_PC)
+      yield Step(Args.LD_INSTR)
+      yield Step(Args.INC_PC)
+      yield Step(Args.LD_IMM)
+      yield Step(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD) # LD 1st part in W reg
+      yield Step(Args.INC_PC)
 
       yield from self.condition_generator(flags,
         _if=[
             # JMP, perfor, remainder of JmpInstruction
-            InstructionStep(Args.LD_IMM), # LD 2nd part in IMM reg
-            InstructionStep(Args.fromRegs(Reg.W, Reg.PC_L)),
-            InstructionStep(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD),
-            InstructionStep(Args.fromRegs(Reg.W, Reg.PC_H)),
-            InstructionStep(rst=True),
+            Step(Args.LD_IMM), # LD 2nd part in IMM reg
+            Step(Args.fromRegs(Reg.W, Reg.PC_L)),
+            Step(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD),
+            Step(Args.fromRegs(Reg.W, Reg.PC_H)),
+            Step(rst=True),
         ],
         _else=[
             # No JMP, increment PC and continue
-            InstructionStep(Args.INC_PC),
-            InstructionStep(rst=True)
+            Step(Args.INC_PC),
+            Step(rst=True)
         ]
       )
 
@@ -143,7 +143,7 @@ for instr in instructions:
 
 """LOG ALL INSTRUCTIONS"""
 log = True
-log_detail = False
+log_detail = True
 if log:
   for idx, instr in enumerate(instructions):
     if log_detail:

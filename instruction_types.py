@@ -110,7 +110,7 @@ class Args(Enum):
     W_TO_REGS_OF_SP  = ArgsInner(15, Reg.W, Reg.REGS_OF_SP)
 
 """Single µstep of an instruction"""
-class InstructionStep:
+class Step:
   def __str__(self):
      if self.rst:
         return "RESET"
@@ -161,9 +161,9 @@ def balanced_yield(branch_idx, branches):
     max_len = max(len(x) for x in branches )
     nops = max_len - len(branches[branch_idx])
     for x in range(nops):
-        yield InstructionStep(alu_op=AluCode.NOP)
+        yield Step(alu_op=AluCode.NOP)
     
-def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=InstructionStep(alu_op=AluCode.NOP)):
+def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=Step(alu_op=AluCode.NOP)):
     branches = [_if00, _if01, _if10, _if11]
     for i in range(4):
         if branches[i] == None:
