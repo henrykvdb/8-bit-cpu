@@ -166,7 +166,7 @@ def balanced_yield(idx, lists):
 def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=InstructionStep(alu_op=AluCode.NOP)):
     options = [_if00, _if01, _if10, _if11]
     for i in range(4):
-        if not options[i]:
+        if options[i] == None:
             options[i] = _else
     yield from balanced_yield(flags, options)
     
