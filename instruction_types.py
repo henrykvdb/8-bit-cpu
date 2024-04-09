@@ -152,23 +152,23 @@ Helper functions for defining instructions
 => to make sure all conditional branches are balanced
 """
 
-def balanced_yield(idx, lists):
+def balanced_yield(branch_idx, branches):
     # Yield selected list items
-    for x in lists[idx]:
+    for x in branches[branch_idx]:
         yield x
         
     # pad to max branch length
-    max_len = max(len(x) for x in lists )
-    nops = max_len - len(lists[idx])
+    max_len = max(len(x) for x in branches )
+    nops = max_len - len(branches[branch_idx])
     for x in range(nops):
         yield InstructionStep(alu_op=AluCode.NOP)
     
 def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=InstructionStep(alu_op=AluCode.NOP)):
-    options = [_if00, _if01, _if10, _if11]
+    branches = [_if00, _if01, _if10, _if11]
     for i in range(4):
-        if options[i] == None:
-            options[i] = _else
-    yield from balanced_yield(flags, options)
+        if branches[i] == None:
+            branches[i] = _else
+    yield from balanced_yield(flags, branches)
     
 def if_zero_flag(flags, _if, _else):
     yield from if_flag(flags, _if01=_if, _if11=_if, _else=_else)
