@@ -1,12 +1,4 @@
-from enum import Enum
-import enum
-import re
 from instruction_types import *
-
-instructions = []
-
-from dataclasses import dataclass
-from typing import Callable
 
 instructions = []
 
@@ -69,12 +61,9 @@ class StoreInstruction(Instruction):
        self.dst = dst
 
     @property
-    def name(self):
-      return "WSTORE"
-    
+    def name(self): return "WSTORE"
     @property
-    def arg(self):
-      return str(self.dst)
+    def arg(self): return str(self.dst)
 
     def run(self, flags):
       yield Step(Args.LD_INSTR)
@@ -101,12 +90,9 @@ class CondJmpInstruction(Instruction):
        self.condition_generator = condition_generator
 
     @property
-    def name(self):
-      return self._name
-    
+    def name(self): return self._name
     @property
-    def arg(self):
-      return "IMM16"
+    def arg(self): return "IMM16"
 
     def run(self, flags):
       yield Step(Args.LD_INSTR)
@@ -135,25 +121,39 @@ instructions.append(CondJmpInstruction("JMP" , if_always))
 instructions.append(CondJmpInstruction("JMPZ", if_zero_flag))
 instructions.append(CondJmpInstruction("JMPC", if_carry_flag))
 
+
+
+
+
+
+
+
+
+
 """VERIFICATION STEP"""
 for instr in instructions:
   for flags in range(4):
     instr.run(flags)
 
-
 """LOG ALL INSTRUCTIONS"""
 log = True
-log_detail = True
+log_detail = False
 if log:
   for idx, instr in enumerate(instructions):
     if log_detail:
       print(f"======= {idx:03d} =======")
       print(f"{instr.name} {instr.arg}")
-      print(f"{Reg.W} {alu_code.symbol()}= {src}")
+      if type(instr) == CoreInstruction:
+        print(f"{Reg.W} {alu_code.symbol()}= {src}")
       print(f"===================")
-      print(f"\x1B[3mi: {"ctrl":8} move\x1B[0m")
-      for step_idx, step in enumerate(instr.run(0)):
-        print(f"{step_idx}: {step}")
+      print(("\x1B[3m{}  i:  ctrl     move       \x1B[0m" * 4).format(*["00", "01", "10", "11"]))
+      table = instr.generate_table(pad=False)
+      for step_idx in range(len(table[0])):
+
+        print((" |  {:02d}: {:20}" * 4).format(
+          step_idx, str(table[0][step_idx]), step_idx, str(table[1][step_idx]),
+          step_idx, str(table[2][step_idx]), step_idx, str(table[3][step_idx])
+          ))
       print()
     else:
       print(f"{idx:03d} | {instr.name:7} {instr.arg}")

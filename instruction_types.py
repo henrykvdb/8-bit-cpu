@@ -83,6 +83,8 @@ class Args(Enum):
           return self.name
        return str(self.value)
     
+    ### RIGHT SIDE
+
     # accumulator OUT
     LD_INSTR         = ArgsInner(0, None, None)
     INC_PC           = ArgsInner(1, None, None)
@@ -93,30 +95,31 @@ class Args(Enum):
 
     # accumulator IN
     IMM_TO_W         = ArgsInner(4, Reg.IMM, Reg.W)
-    SP_TO_W          = ArgsInner(5, Reg.SP, Reg.W)
-    REGS_OF_IMM_TO_W = ArgsInner(6, Reg.REGS_OF_IMM, Reg.W)
-    REGS_OF_SP_TO_W  = ArgsInner(7, Reg.REGS_OF_SP, Reg.W)
+    SP_TO_W          = ArgsInner(5, Reg.SP, Reg.W) # TODO HW bugged
+    REGS_OF_IMM_TO_W = ArgsInner(6, Reg.REGS_OF_IMM, Reg.W) #TODO HW
+    REGS_OF_SP_TO_W  = ArgsInner(7, Reg.REGS_OF_SP, Reg.W) # TODO HW
+
+    ### LEFT SIDE
 
     # accumulator OUT
-    W_TO_OUTA        = ArgsInner(8, Reg.W, Reg.OUT_A)
-    W_TO_OUTB        = ArgsInner(9, Reg.W, Reg.OUT_B)
-    W_TO_PCL         = ArgsInner(10, Reg.W, Reg.PC_L)
-    W_TO_PCH         = ArgsInner(11, Reg.W, Reg.PC_H)
+    W_TO_OUTA        = ArgsInner(8 + 0, Reg.W, Reg.OUT_A)
+    W_TO_OUTB        = ArgsInner(8 + 1, Reg.W, Reg.OUT_B) # TODO HW
+    W_TO_PCL         = ArgsInner(8 + 2, Reg.W, Reg.PC_L)
+    W_TO_PCH         = ArgsInner(8 + 3, Reg.W, Reg.PC_H)
 
     # accumulator OUT
-    LD_IMM           = ArgsInner(12, None, None)
-    W_TO_SP          = ArgsInner(13, Reg.W, Reg.SP)
-    W_TO_REGS_OF_IMM = ArgsInner(14, Reg.W, Reg.REGS_OF_IMM)
-    W_TO_REGS_OF_SP  = ArgsInner(15, Reg.W, Reg.REGS_OF_SP)
+    LD_IMM           = ArgsInner(8 + 4, None, None)
+    W_TO_SP          = ArgsInner(8 + 5, Reg.W, Reg.SP)
+    W_TO_REGS_OF_IMM = ArgsInner(8 + 6, Reg.W, Reg.REGS_OF_IMM) # TODO HW
+    W_TO_REGS_OF_SP  = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_SP) # TODO HW
 
 """Single µstep of an instruction"""
 class Step:
   def __str__(self):
-     if self.rst:
-        return "RESET"
-     
-     op_str = str(self.alu_op) if self.alu_op else ""
-     return f"{op_str:8} {self.args}"
+    if self.rst: return "RESET"
+    op_str = str(self.alu_op) if self.alu_op else ""
+    args_string = str(self.args) if self.args else ""
+    return f"{op_str:8} {args_string}"
 
   def __init__(self, args:Args = None, alu_op:AluCode = None, rst:bool = False):
     if (args and args.value.dst == Reg.W):
@@ -145,6 +148,25 @@ class Instruction(ABC):
     @abstractmethod  # Decorator to define an abstract method
     def run(self, flags):
        raise NotImplementedError("Instruction not implemented correctly")
+    
+    def generate_table(self, pad=True):
+        # Generate table
+        table = []
+        for flags in range(4):
+          steps = list(self.run(flags))
+          assert len(steps) <= 16
+          table.append(steps)
+        
+        # All branches should be equal length
+        assert len({len(i) for i in table}) == 1
+
+        # Pad with NOP
+        if pad:
+          for flags in range(4):
+            for _ in range(16 - len(table[flags])):
+              table[flags].append(Step(rst=True))
+        
+        return table
 
 
 """
