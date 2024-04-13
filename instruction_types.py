@@ -20,8 +20,8 @@ class AluCode(Enum):
 #   NAME    CODE
     WADD    = 0
     WSUB    = 1
-    WINC    = 2 # TODO - wire in HW
-    NOP     = 3 # TODO - wire in HW
+    WINV    = 2
+    NOP     = 3
     WAND    = 4
     WOR     = 5
     WXOR    = 6
