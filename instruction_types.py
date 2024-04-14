@@ -20,7 +20,7 @@ class AluCode(Enum):
 #   NAME    CODE
     WADD    = 0
     WSUB    = 1
-    WINV    = 2
+    WNEG    = 2
     NOP     = 3
     WAND    = 4
     WOR     = 5
@@ -44,10 +44,11 @@ class Reg(Enum):
     W           = RegsCapabilities( True,  True)
     PC_L        = RegsCapabilities( True,  True)
     PC_H        = RegsCapabilities( True,  True)
-    IMM         = RegsCapabilities( True, False)
     SP          = RegsCapabilities( True,  True)
     REGS_OF_IMM = RegsCapabilities( True,  True)
     REGS_OF_SP  = RegsCapabilities( True,  True)
+    IMM         = RegsCapabilities( True, False)
+    IN          = RegsCapabilities( True, False)
     OUT_A       = RegsCapabilities(False,  True)
     OUT_B       = RegsCapabilities(False,  True)
 
@@ -83,35 +84,36 @@ class Args(Enum):
           return self.name
        return str(self.value)
     
+    # ACC_IN => lowest bit ArgsInner.code
+    
     ### RIGHT SIDE
 
-    # accumulator OUT
-    LD_INSTR         = ArgsInner(0, None, None)
-    INC_PC           = ArgsInner(1, None, None)
+    INC_PC           = ArgsInner(0, None, None)       # X
+    
+    W_TO_OUTB        = ArgsInner(1, Reg.W, Reg.OUT_B) # OUT TODO HW (add reg)
 
-    # accumulator IN
-    PCL_TO_W         = ArgsInner(2, Reg.PC_L, Reg.W)
-    PCH_TO_W         = ArgsInner(3, Reg.PC_H, Reg.W)
+    IN_TO_W          = ArgsInner(2, Reg.IN, Reg.W)    # IN TODO HW (add reg)
+    W_TO_OUTA        = ArgsInner(3, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg)
 
-    # accumulator IN
-    IMM_TO_W         = ArgsInner(4, Reg.IMM, Reg.W)
-    SP_TO_W          = ArgsInner(5, Reg.SP, Reg.W) # TODO HW bugged
-    REGS_OF_IMM_TO_W = ArgsInner(6, Reg.REGS_OF_IMM, Reg.W) #TODO HW
-    REGS_OF_SP_TO_W  = ArgsInner(7, Reg.REGS_OF_SP, Reg.W) # TODO HW
+    PCL_TO_W         = ArgsInner(4, Reg.PC_L, Reg.W) # IN
+    W_TO_PCL         = ArgsInner(5, Reg.W, Reg.PC_L) # OUT
+
+    PCH_TO_W         = ArgsInner(6, Reg.PC_H, Reg.W) # IN
+    W_TO_PCH         = ArgsInner(7, Reg.W, Reg.PC_H) # OUT
 
     ### LEFT SIDE
 
-    # accumulator OUT
-    W_TO_OUTA        = ArgsInner(8 + 0, Reg.W, Reg.OUT_A)
-    W_TO_OUTB        = ArgsInner(8 + 1, Reg.W, Reg.OUT_B) # TODO HW
-    W_TO_PCL         = ArgsInner(8 + 2, Reg.W, Reg.PC_L)
-    W_TO_PCH         = ArgsInner(8 + 3, Reg.W, Reg.PC_H)
+    SP_TO_W          = ArgsInner(8 + 0, Reg.SP, Reg.W) # IN
+    W_TO_SP          = ArgsInner(8 + 1, Reg.W, Reg.SP) # OUT
 
-    # accumulator OUT
-    LD_IMM           = ArgsInner(8 + 4, None, None)
-    W_TO_SP          = ArgsInner(8 + 5, Reg.W, Reg.SP)
-    W_TO_REGS_OF_IMM = ArgsInner(8 + 6, Reg.W, Reg.REGS_OF_IMM) # TODO HW
-    W_TO_REGS_OF_SP  = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_SP) # TODO HW
+    REGS_OF_SP_TO_W  = ArgsInner(8 + 2, Reg.REGS_OF_SP, Reg.W)  # IN
+    W_TO_REGS_OF_SP  = ArgsInner(8 + 3, Reg.W,  Reg.REGS_OF_SP) # OUT
+
+    IMM_TO_W         = ArgsInner(8 + 4, Reg.IMM, Reg.W) # IN
+    LD_IMM           = ArgsInner(8 + 5, None, None)     # X
+
+    REGS_OF_IMM_TO_W = ArgsInner(8 + 6, Reg.REGS_OF_IMM, Reg.W) # IN
+    W_TO_REGS_OF_IMM = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_IMM) # OUT
 
 """Single µstep of an instruction"""
 class Step:

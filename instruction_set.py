@@ -47,8 +47,6 @@ for wb in [False, True]: #writeback
       if wb and not src.value.can_dst: continue
       if wb and alu_code == AluCode.WLOAD: continue
       if alu_code == AluCode.NOP: continue
-      if alu_code == AluCode.WINC:
-         if src == Reg.PC_L or src == Reg.PC_H: continue
 
       # Create instruction
       #print(src)
