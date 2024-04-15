@@ -30,5 +30,5 @@ tmp1 = [stringify_list(x, newline=True) for x in tmp0]
 codes_str = "const PROGMEM uint8_t decode_table[256][4][16] = "
 codes_str += stringify_list(tmp1, newline=True) + ";"
 
-with open("decode-table.hpp", "w") as f:
+with open("EEPROM-arduino/instr-to-control/decode-table.hpp", "w") as f:
   f.write(codes_str)
