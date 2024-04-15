@@ -21,7 +21,6 @@ class CoreInstruction(Instruction):
        return str(self.src)
 
     def run(self, flags):
-      yield Step(Args.LD_INSTR)
       if self.src == Reg.IMM or self.src == Reg.REGS_OF_IMM:
         yield Step(Args.INC_PC)
         yield Step(Args.LD_IMM)
@@ -64,7 +63,6 @@ class StoreInstruction(Instruction):
     def arg(self): return str(self.dst)
 
     def run(self, flags):
-      yield Step(Args.LD_INSTR)
       if self.dst == Reg.IMM or self.dst == Reg.REGS_OF_IMM:
         yield Step(Args.INC_PC)
         yield Step(Args.LD_IMM)
@@ -93,12 +91,10 @@ class CondJmpInstruction(Instruction):
     def arg(self): return "IMM16"
 
     def run(self, flags):
-      yield Step(Args.LD_INSTR)
       yield Step(Args.INC_PC)
       yield Step(Args.LD_IMM)
       yield Step(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD) # LD 1st part in W reg
       yield Step(Args.INC_PC)
-
       yield from self.condition_generator(flags,
         _if=[
             # JMP, perfor, remainder of JmpInstruction
@@ -106,27 +102,31 @@ class CondJmpInstruction(Instruction):
             Step(Args.fromRegs(Reg.W, Reg.PC_L)),
             Step(Args.fromRegs(Reg.IMM, Reg.W), AluCode.WLOAD),
             Step(Args.fromRegs(Reg.W, Reg.PC_H)),
-            Step(rst=True),
         ],
         _else=[
             # No JMP, increment PC and continue
             Step(Args.INC_PC),
-            Step(rst=True)
         ]
       )
+      yield Step(rst=True)
 
 instructions.append(CondJmpInstruction("JMP" , if_always))
 instructions.append(CondJmpInstruction("JMPZ", if_zero_flag))
 instructions.append(CondJmpInstruction("JMPC", if_carry_flag))
 
+"""HALT instruction; hangs the processor"""
+instructions_count = len(instructions)
 
+class HaltInstruction(Instruction):
+    @property
+    def name(self): return "HALT"
+    @property
+    def arg(self): return ""
 
+    def run(self, flags):
+      yield Step(rst=True)
 
-
-
-
-
-
+instructions.append(HaltInstruction())
 
 """VERIFICATION STEP"""
 for instr in instructions:
@@ -157,3 +157,19 @@ if log:
       print(f"{idx:03d} | {instr.name:7} {instr.arg}")
 
   print(f"Used {100*len(instructions)/256:.1f}% of instructions")
+
+
+"""NOP instruction; Do nothing"""
+
+class NopInstruction(Instruction):
+    @property
+    def name(self): return "NOP"
+    @property
+    def arg(self): return ""
+
+    def run(self, flags):
+      yield Step(Args.INC_PC)
+      yield Step(rst=True)
+
+while len(instructions) < 256:
+  instructions.append(NopInstruction())

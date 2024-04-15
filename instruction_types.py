@@ -7,6 +7,9 @@ import re
 class AluCode(Enum):
     def __str__(self):
         return self.name
+
+    def code(self):
+       return self.value
     
     def symbol(self):
         if self == AluCode.WADD: return '+'
@@ -83,6 +86,9 @@ class Args(Enum):
        if not self.value.src or not self.value.dst:
           return self.name
        return str(self.value)
+
+    def code(self):
+       return self.value.code
     
     # ACC_IN => lowest bit ArgsInner.code
     
@@ -118,22 +124,54 @@ class Args(Enum):
 """Single µstep of an instruction"""
 class Step:
   def __str__(self):
-    if self.rst: return "RESET"
+    if self.rst:
+       return "RESET"
+    if self.alu_op == AluCode.NOP and self.args == Args.PCL_TO_W:
+       return "NOP"
     op_str = str(self.alu_op) if self.alu_op else ""
     args_string = str(self.args) if self.args else ""
     return f"{op_str:8} {args_string}"
 
   def __init__(self, args:Args = None, alu_op:AluCode = None, rst:bool = False):
-    if (args and args.value.dst == Reg.W):
-       assert alu_op # If storing to W alu_op should be defined
+    set_defaults = False
+
+    # Edge case: reset
+    if rst:
+       assert not (args or alu_op)
+       set_defaults = True
+    
+    # Edge case: NOP
+    if alu_op == AluCode.NOP:
+       assert not args
+       set_defaults = True
+    
+    # Edge case: INC_PC
+    if args in [Args.INC_PC, Args.LD_IMM]:
+       assert not alu_op
+       set_defaults = True
+    
+    # Set defaults / Do sanity checks
+    if set_defaults:
+       alu_op = alu_op or AluCode.NOP
+       args = args or Args.PCL_TO_W
+    else:
+       assert args is not None
+       if (args.value.dst == Reg.W):
+          assert alu_op is not None
+       else:
+          alu_op = alu_op or AluCode.NOP
+          assert alu_op == AluCode.NOP
+
     self.args = args
     self.alu_op = alu_op
     self.rst = rst
 
   def code(self):
-    args = self.args or Args.LD_INSTR
-    alu_op = self.alu_op or AluCode.WADD
-    rst = self.rst
+    value = 0
+    value += (0 if self.rst else 1) << 7
+    value +=     self.alu_op.code() << 4
+    value +=       self.args.code() << 0
+    return value
 
 """Full instruction"""
 class Instruction(ABC):
