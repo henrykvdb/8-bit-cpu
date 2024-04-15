@@ -20,14 +20,15 @@ for i in range(256):
   for flags in range(4):
     assert len(codes[i][flags]) == 16
 
-def stringify_list(lst):
-  return "{" + ", ".join(str(x) for x in lst) + "}"
+def stringify_list(lst, newline=False):
+  newline_str = "\n\t" if newline else ""
+  return newline_str + "{" + ", ".join(str(x) for x in lst) + "}"
 
 # Write table
-tmp0 = [[stringify_list(x) for x in nested] for nested in codes]
-tmp1 = [stringify_list(x) for x in tmp0]
-codes_str = "const PROGMEM uint8_t decode_table[256][16][4] = "
-codes_str += stringify_list(tmp1) + ";"
+tmp0 = [[stringify_list(x, newline=True) for x in nested] for nested in codes]
+tmp1 = [stringify_list(x, newline=True) for x in tmp0]
+codes_str = "const PROGMEM uint8_t decode_table[256][4][16] = "
+codes_str += stringify_list(tmp1, newline=True) + ";"
 
 with open("decode-table.hpp", "w") as f:
   f.write(codes_str)
