@@ -2,6 +2,15 @@ from instruction_types import *
 
 instructions = []
 
+def get_instr_code(name: str, arg: str):
+  for idx, instr in enumerate(instructions):
+    if instr.name == name and instr.arg == arg:
+      return idx
+  raise Exception(f"Instruction '{name} {arg}' not found")
+
+def get_instr(name: str, arg: str):
+  return instructions[get_instr_code(name, arg)]
+
 """Core instructions; All possible ALU operations, with options for writeback"""
 
 class CoreInstruction(Instruction):
@@ -114,6 +123,24 @@ instructions.append(CondJmpInstruction("JMP" , if_always))
 instructions.append(CondJmpInstruction("JMPZ", if_zero_flag))
 instructions.append(CondJmpInstruction("JMPC", if_carry_flag))
 
+
+"""NOP instruction; Do nothing"""
+
+assert len(instructions) <= 254 # Need to add two more
+
+class NopInstruction(Instruction):
+    @property
+    def name(self): return "NOP"
+    @property
+    def arg(self): return ""
+
+    def run(self, flags):
+      yield Step(Args.INC_PC)
+      yield Step(rst=True)
+
+while len(instructions) < 255:
+  instructions.append(NopInstruction())
+
 """HALT instruction; hangs the processor"""
 instructions_count = len(instructions)
 
@@ -124,20 +151,50 @@ class HaltInstruction(Instruction):
     def arg(self): return ""
 
     def run(self, flags):
+      # Don't increment PC -> hang
       yield Step(rst=True)
 
 instructions.append(HaltInstruction())
 
+
+
+
+
+
+
 """VERIFICATION STEP"""
+
+# Make sure they all run without errors
 for instr in instructions:
   for flags in range(4):
     instr.run(flags)
 
+# Make sure they are unique (except NOP)
+for idx, instr in enumerate(instructions):
+  if instr.name == "NOP": continue
+  lookup_idx = get_instr_code(instr.name, instr.arg)
+  if idx != lookup_idx:
+    raise Exception(f"Duplicate instruction '{instr.name} {instr.arg}'")
+
+
+
+
+
+
+
+
+
 """LOG ALL INSTRUCTIONS"""
 log = True
 log_detail = False
+count = 0
 if log:
   for idx, instr in enumerate(instructions):
+    # Skip duplicates
+    if get_instr_code(instr.name, instr.arg) != idx:
+      continue
+    
+    count += 1
     if log_detail:
       print(f"======= {idx:03d} =======")
       print(f"{instr.name} {instr.arg}")
@@ -159,20 +216,5 @@ if log:
     else:
       print(f"{idx:03d} | {instr.name:7} {instr.arg}")
 
-  print(f"Used {100*len(instructions)/256:.1f}% of instructions")
-
-
-"""NOP instruction; Do nothing"""
-
-class NopInstruction(Instruction):
-    @property
-    def name(self): return "NOP"
-    @property
-    def arg(self): return ""
-
-    def run(self, flags):
-      yield Step(Args.INC_PC)
-      yield Step(rst=True)
-
-while len(instructions) < 256:
-  instructions.append(NopInstruction())
+  print(f"Used {100*count/256:.1f}% of instructions")
+  
