@@ -26,11 +26,11 @@ class CoreInstruction(Instruction):
         yield Step(Args.LD_IMM)
 
       # Perform operation
-      yield Step(Args.fromRegs(self.src, Reg.W), alu_code)
+      yield Step(Args.fromRegs(self.src, Reg.W), self.alu_code)
 
       # Writeback (optional)
       if self.wb:
-        yield Step(Args.fromRegs(Reg.W, src))
+        yield Step(Args.fromRegs(Reg.W, self.src))
       
       # Increment program counter for next instruction
       yield Step(Args.INC_PC)
@@ -142,7 +142,10 @@ if log:
       print(f"======= {idx:03d} =======")
       print(f"{instr.name} {instr.arg}")
       if type(instr) == CoreInstruction:
-        print(f"{Reg.W} {alu_code.symbol()}= {src}")
+        if instr.alu_code == AluCode.WNEG:
+          print(f"{Reg.W} = -{Reg.W}")
+        else:
+          print(f"{Reg.W} {instr.alu_code.symbol()}= {instr.src}")
       print(f"===================")
       print(("\x1B[3m{}  i:  ctrl     move       \x1B[0m" * 4).format(*["00", "01", "10", "11"]))
       table = instr.generate_table(pad=False)
