@@ -60,10 +60,10 @@ const unsigned long in_map_flags[8] = {
 
 // Convert instruction step code -> instruction step control
 const unsigned long out_map[8] = {
-  ipow(2, 6), // ARGS_CODE 0
-  ipow(2, 0), // ARGS_CODE 1
-  ipow(2, 1), // ARGS_CODE 2
-  ipow(2, 2), // ARGS_CODE 3
+  ipow(2, 2), // ARGS_CODE 0
+  ipow(2, 1), // ARGS_CODE 1
+  ipow(2, 0), // ARGS_CODE 2
+  ipow(2, 6), // ARGS_CODE 3 (select demux)
   ipow(2, 3), // ALU_CODE_0
   ipow(2, 4), // ALU_CODE_1
   ipow(2, 5), // ALU_CODE_2
@@ -141,7 +141,7 @@ void setup()
   }
 
   // *** CHECK WHAT WAS WRITTEN ***
-  Serial.println("Start reading");
+  Serial.println("Start verifying");
   setPinsToDefaultForReading();
   
   for (unsigned int s_idx = 0; s_idx < 16; s_idx++){
@@ -161,7 +161,7 @@ void setup()
     }
   }
 
-  Serial.println("Done reading");
+  Serial.println("Done verifying");
   Serial.flush();
 }
 

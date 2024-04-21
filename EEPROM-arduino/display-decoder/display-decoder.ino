@@ -52,14 +52,14 @@ const int DISP_VAL_9 = (DISP_VAL_0 - BOTTOM_LEFT) | MIDDLE;
 const int DISP_VALS [10] = {DISP_VAL_0, DISP_VAL_1, DISP_VAL_2, DISP_VAL_3, DISP_VAL_4, DISP_VAL_5, DISP_VAL_6, DISP_VAL_7, DISP_VAL_8, DISP_VAL_9};
 
 const unsigned long bus_pin_values[8] = {
-  pow(2,10),
-  pow(2,11),
   pow(2, 9),
   pow(2, 8),
-  pow(2,13),
-  pow(2,14),
+  pow(2,10),
+  pow(2,11),
   pow(2,16),
-  pow(2,15)
+  pow(2,15),
+  pow(2,13),
+  pow(2,14)
   };
 
 // Select which display to render
@@ -217,17 +217,13 @@ void setPinsToDefaultForWriting()
   digitalWrite(EEPROM_CHIP_EN, LOW);
 }
 
-/* Shift in a new address and output it
+/* Shift in a new address and output it => Need to toggle DFF CLK after to make visible
  * Note: Call setPinsToDefaultForReading() before calling this function. */
 void shiftAddress(unsigned long address)
 {
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address));       // Outputs XXXX XXXX (bits 0-7)
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address >> 8));  // Outputs XXXX XXXX (bits 8-15)
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address >> 16)); // Outputs 0000 000X (bits 16-23)
-
-  // Show the new address to the EEPROM
-  digitalWrite(DFF_CLK, HIGH);
-  digitalWrite(DFF_CLK, LOW);
 }
 
 /* Reads from the EEPROM. 
@@ -236,6 +232,10 @@ byte readEEPROM(unsigned long address)
 {
   // Set up the address
   shiftAddress(address);
+
+  // Show the new address to the EEPROM
+  digitalWrite(DFF_CLK, HIGH);
+  digitalWrite(DFF_CLK, LOW);
 
   // Perform the read (reverse)
   byte data = 0;
@@ -250,11 +250,15 @@ byte readEEPROM(unsigned long address)
  * Note: Call setPinsToDefaultForReading() before calling this function. */
 void writeEEPROM(unsigned long address, byte data)
 {
+  // Set up the address
+  shiftAddress(address);
+
   // End the previous write if there was one
   digitalWrite(EEPROM_WRITE_EN, HIGH);
 
-  // Set up the address
-  shiftAddress(address);
+  // Show the new address to the EEPROM
+  digitalWrite(DFF_CLK, HIGH);
+  digitalWrite(DFF_CLK, LOW);
   
   // Set up the data
   for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++){

@@ -1,5 +1,6 @@
 /* Programs the 17x8 Greenliant GLS29EE010 EEPROM using an Arduino Micro and 3 74HC595 shift registers.
  * KiCAD schematic of the EEPROM programmer can also be found in this repo.*/
+#include "instructions.hpp"
 
 #define EEPROM_D0 2 // data LSB
 #define EEPROM_D7 9 // data MSB
@@ -13,9 +14,9 @@
 #define EEPROM_WRITE_EN A1 // active-low EEPROM write enable
 #define EEPROM_CHIP_EN A2 // active-low EEPROM chip enable
 
-int ipow(int base, int exp)
+uint32_t lpow(uint32_t base, uint16_t exp)
 {
-    int result = 1;
+    uint32_t result = 1;
     for (;;)
     {
         if (exp & 1)
@@ -30,47 +31,47 @@ int ipow(int base, int exp)
 }
 
 // Convert 16b PC -> EEPROM address
-const unsigned long in_map[16] = {
+const uint32_t in_map[16] = {
   // PC_L
-  ipow(2, 0),
-  ipow(2, 1),
-  ipow(2, 2),
-  ipow(2, 3),
-  ipow(2, 4),
-  ipow(2, 5),
-  ipow(2, 6),
-  ipow(2, 7),
+  lpow(2, 0),
+  lpow(2, 1),
+  lpow(2, 2),
+  lpow(2, 3),
+  lpow(2, 4),
+  lpow(2, 5),
+  lpow(2, 6),
+  lpow(2, 7),
   // PC_H
-  ipow(2,12),
-  ipow(2,15),
-  ipow(2,16),
-  ipow(2,14),
-  ipow(2,13),
-  ipow(2, 8),
-  ipow(2, 9),
-  ipow(2,11)
+  lpow(2,12),
+  lpow(2,15),
+  lpow(2,16),
+  lpow(2,14),
+  lpow(2,13),
+  lpow(2, 8),
+  lpow(2, 9),
+  lpow(2,11)
   };
 
 
 // Convert 16b PC -> EEPROM address
-const unsigned long out_map[16] = {
-  ipow(2, 3),
-  ipow(2, 0),
-  ipow(2, 4),
-  ipow(2, 5),
-  ipow(2, 7),
-  ipow(2, 6),
-  ipow(2, 1),
-  ipow(2, 2),
+const uint32_t out_map[16] = {
+  lpow(2, 3),
+  lpow(2, 0),
+  lpow(2, 4),
+  lpow(2, 5),
+  lpow(2, 7),
+  lpow(2, 6),
+  lpow(2, 1),
+  lpow(2, 2),
   0L,0L,0L,0L,0L,0L,0L,0L
   };
 
 // Convert 16b PC -> EEPROM address
-unsigned long encode(unsigned int value, unsigned long mapping [16])
+uint32_t encode(uint16_t value, uint32_t mapping [16])
 {
-  unsigned long encoded = 0;
-  unsigned int remain = value;
-  int bit_idx = 0;
+  uint32_t encoded = 0;
+  uint16_t remain = value;
+  uint16_t bit_idx = 0;
   while(remain > 0){
     if (remain & 1){
       encoded += mapping[bit_idx];
@@ -93,56 +94,69 @@ void setup()
   setPinsToDefaultForWriting();
   Serial.println("Programming EEPROM");
   Serial.flush();
-
-  Serial.println(encode(ipow(2, 0), out_map));
-  Serial.println(encode(ipow(2, 1), out_map));
-  Serial.println(encode(ipow(2, 2), out_map));
-  Serial.println(encode(ipow(2, 3), out_map));
-  Serial.println(encode(ipow(2, 4), out_map));
-  Serial.println(encode(ipow(2, 5), out_map));
-  Serial.println(encode(ipow(2, 6), out_map));
-  Serial.println(encode(ipow(2, 7), out_map));
-
-  unsigned long instr_count = 256;
-  unsigned long WRITE_SIZE = 128;
+  
+  const uint32_t instr_count = 65536;
+  
+  // Writing constants / variables
+  const uint16_t print_count = 64;
+  const uint16_t print_period = instr_count / print_count;
+  uint16_t print_idx = 0;
+  
+  // Buffers
+  uint32_t WRITE_SIZE = 128;
   byte data_buffer [WRITE_SIZE];
-  for (unsigned int i_block = 0; i_block < instr_count / WRITE_SIZE; i_block++){
-    unsigned long base_addr = i_block * WRITE_SIZE;
+  uint32_t addr_buffer [WRITE_SIZE];
+
+  for (uint16_t i_block = 0; i_block < instr_count / WRITE_SIZE; i_block++){
+    uint32_t base_addr = i_block * WRITE_SIZE;
 
     // encode data
-    for (unsigned int i = 0; i < WRITE_SIZE; i++){
-      unsigned long in_addr = base_addr + i;
-      unsigned long addr = encode(ipow(2, in_addr), in_map);
-      data_buffer[i] = encode(i, out_map);
+    for (uint16_t i = 0; i < WRITE_SIZE; i++){
+      uint32_t in_addr = base_addr + i;
+      data_buffer[i] = encode(pgm_read_byte_near(&instructions[in_addr%16384]), out_map);
+      addr_buffer[i] = encode(in_addr, in_map);
+      
+      if (((in_addr + 1) % print_period) == 0){
+        print_idx += 1;
+        Serial.println("WRITING PULSE: " + String(print_idx) + "/" + String(print_count));
+      }
     }
 
 
     bypassSDP();
-    for (unsigned int i = 0; i < 16; i++) // the first 2-16 bytes written in each page are skipped for some reason, so write 16 useless bytes
+    for (uint16_t i = 0; i < 16; i++) // the first 2-16 bytes written in each page are skipped for some reason, so write 16 useless bytes
       writeEEPROM(base_addr, 0xFF);
     
-      Serial.println("Programming EEPROM");
-    for (unsigned int i = base_addr; i < base_addr + WRITE_SIZE; i++){
-      unsigned long addr = encode(i, in_map);
-
-      if (i < 8) {
-        byte data = encode(ipow(2, i), out_map);
-        writeEEPROM(addr, data);
-      } else {
-        byte data = encode(i, out_map);
-        writeEEPROM(addr, data);
-      }
-
+    for (uint16_t i = 0; i < WRITE_SIZE; i++){
+      uint32_t addr = addr_buffer[i];
+      byte data = data_buffer[i];
+      writeEEPROM(addr, data);
     }
 
     endWriting(); // end the page write
   }
 
   // *** CHECK WHAT WAS WRITTEN ***
-  Serial.println("Start reading");
+  Serial.println("Start verifying");
   setPinsToDefaultForReading();
-  print256Bytes();
-  Serial.println("Done reading");
+
+  print_idx = 0;
+  for (uint32_t idx = 0; idx < instr_count; idx++){
+      if (((idx + 1) % print_period) == 0){
+        print_idx += 1;
+        Serial.println("CHECKING PULSE: " + String(print_idx) + "/" + String(print_count));
+      }
+      uint8_t data_exp =  encode(pgm_read_byte_near(&instructions[idx%16384]), out_map);
+      uint32_t addr_real = encode(idx, in_map);
+      uint8_t data_real = readEEPROM(addr_real);
+      if (data_exp != data_real){
+          Serial.println("instructions[" + String(idx) + "] =>  NOT OK");
+          Serial.println(" exp = " + String(data_exp));
+          Serial.println("real = " + String(data_real));
+      }
+  }
+
+  Serial.println("Done verifying");
   Serial.flush();
 }
 
@@ -162,7 +176,7 @@ void bypassSDP()
 /* Sets all the pins for reading from the EEPROM. */
 void setPinsToDefaultForReading()
 {
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
   {
     pinMode(pin, INPUT);
   }
@@ -187,7 +201,7 @@ void setPinsToDefaultForReading()
 /* Sets all the pins for writing to the EEPROM. */
 void setPinsToDefaultForWriting()
 {
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
   {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
@@ -210,29 +224,29 @@ void setPinsToDefaultForWriting()
   digitalWrite(EEPROM_CHIP_EN, LOW);
 }
 
-/* Shift in a new address and output it
+/* Shift in a new address and output it => Need to toggle DFF CLK after to make visible
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-void shiftAddress(unsigned long address)
+void shiftAddress(uint32_t address)
 {
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address));       // Outputs XXXX XXXX (bits 0-7)
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address >> 8));  // Outputs XXXX XXXX (bits 8-15)
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address >> 16)); // Outputs 0000 000X (bits 16-23)
-
-  // Show the new address to the EEPROM
-  digitalWrite(DFF_CLK, HIGH);
-  digitalWrite(DFF_CLK, LOW);
 }
 
 /* Reads from the EEPROM. 
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-byte readEEPROM(unsigned long address)
+byte readEEPROM(uint32_t address)
 {
   // Set up the address
   shiftAddress(address);
 
+  // Show the new address to the EEPROM
+  digitalWrite(DFF_CLK, HIGH);
+  digitalWrite(DFF_CLK, LOW);
+
   // Perform the read (reverse)
   byte data = 0;
-  for (int pin = EEPROM_D7; pin >= EEPROM_D0; pin--){
+  for (uint16_t pin = EEPROM_D7; pin >= EEPROM_D0; pin--){
     data = (data << 1) + digitalRead(pin);
   }
   return data;
@@ -241,16 +255,20 @@ byte readEEPROM(unsigned long address)
 /* Start write to the EEPROM
  * Does not finish it in order to let the next writeEEPROM() call or an endWriting() finish it.
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-void writeEEPROM(unsigned long address, byte data)
+void writeEEPROM(uint32_t address, byte data)
 {
+  // Set up the address
+  shiftAddress(address);
+
   // End the previous write if there was one
   digitalWrite(EEPROM_WRITE_EN, HIGH);
 
-  // Set up the address
-  shiftAddress(address);
+  // Show the new address to the EEPROM
+  digitalWrite(DFF_CLK, HIGH);
+  digitalWrite(DFF_CLK, LOW);
   
   // Set up the data
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++){
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++){
     digitalWrite(pin, data & 1);
     data = data >> 1;
   }
@@ -279,12 +297,12 @@ void endWriting()
  * Note: Call setPinsToDefaultForReading() before calling this function. */
 void print256Bytes()
 {
-  unsigned long baseAddr;
+  uint32_t baseAddr;
 
   byte data[16];
   for (baseAddr = 0UL; baseAddr < 256UL; baseAddr += 16UL) // for every 16 addresses in the EEPROM
   {
-    for (unsigned int offset = 0U; offset < 16U; offset++) // for each address within the current set of 16 addresses
+    for (uint16_t offset = 0U; offset < 16U; offset++) // for each address within the current set of 16 addresses
     {
       data[offset] = readEEPROM(baseAddr + offset);
     }
