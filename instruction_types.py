@@ -45,6 +45,7 @@ class Reg(Enum):
         return re.sub(r"\[([^_]*)_", r"[\g<1>]_", name)
     
     W           = RegsCapabilities( True,  True)
+    TMP         = RegsCapabilities( True,  True)
     PC_L        = RegsCapabilities( True,  True)
     PC_H        = RegsCapabilities( True,  True)
     SP          = RegsCapabilities( True,  True)
@@ -91,15 +92,16 @@ class Args(Enum):
        return self.value.code
     
     # ACC_IN => lowest bit ArgsInner.code
-    
-    ### RIGHT SIDE
 
-    INC_PC           = ArgsInner(0, None, None)       # X
     
+    ### 0-7 (above PC-L)
+
+    INC_PC           = ArgsInner(0, None, None)       # IN (rst delay reg on W_IN)
+
     W_TO_OUTB        = ArgsInner(1, Reg.W, Reg.OUT_B) # OUT TODO HW (add reg)
 
-    IN_TO_W          = ArgsInner(2, Reg.IN, Reg.W)    # IN TODO HW (add reg)
-    W_TO_OUTA        = ArgsInner(3, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg)
+    TMP_TO_W         = ArgsInner(2, Reg.TMP, Reg.W) # IN TODO
+    W_TO_TMP         = ArgsInner(3, Reg.W, Reg.TMP) # OUT TODO
 
     PCL_TO_W         = ArgsInner(4, Reg.PC_L, Reg.W) # IN
     W_TO_PCL         = ArgsInner(5, Reg.W, Reg.PC_L) # OUT
@@ -107,7 +109,7 @@ class Args(Enum):
     PCH_TO_W         = ArgsInner(6, Reg.PC_H, Reg.W) # IN
     W_TO_PCH         = ArgsInner(7, Reg.W, Reg.PC_H) # OUT
 
-    ### LEFT SIDE
+    ### 8-15 (above ram muxing)
 
     SP_TO_W          = ArgsInner(8 + 0, Reg.SP, Reg.W) # IN
     W_TO_SP          = ArgsInner(8 + 1, Reg.W, Reg.SP) # OUT
@@ -120,6 +122,13 @@ class Args(Enum):
 
     REGS_OF_IMM_TO_W = ArgsInner(8 + 6, Reg.REGS_OF_IMM, Reg.W) # IN
     W_TO_REGS_OF_IMM = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_IMM) # OUT
+
+    ### 16-23 (not decoded)
+
+    ### 24-31 (above PC-H)
+
+    IN_TO_W          = ArgsInner(2, Reg.IN, Reg.W)    # IN TODO HW (add reg) 24
+    W_TO_OUTA        = ArgsInner(3, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg) 25
 
 """Single µstep of an instruction"""
 class Step:
