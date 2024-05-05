@@ -47,8 +47,8 @@ const unsigned long in_map_ustep[8] = {
   // Pins for ustep addresses
   ipow(2, 14),
   ipow(2, 13),
-  ipow(2, 8),
   ipow(2, 9),
+  ipow(2, 8),
   0L,0L,0L,0L
   };
 const unsigned long in_map_flags[8] = {
@@ -64,10 +64,10 @@ const unsigned long out_map[8] = {
   ipow(2, 1), // ARGS_CODE 1
   ipow(2, 0), // ARGS_CODE 2
   ipow(2, 6), // ARGS_CODE 3 (select demux)
+  ipow(2, 7), // ARGS_CODE 4 (select demux)
   ipow(2, 3), // ALU_CODE_0
   ipow(2, 4), // ALU_CODE_1
-  ipow(2, 5), // ALU_CODE_2
-  ipow(2, 7)  // RST
+  ipow(2, 5)  // ALU_CODE_2
   };
 
 unsigned long encode_instr_addr(unsigned int instr, unsigned int flags, unsigned int ustep){

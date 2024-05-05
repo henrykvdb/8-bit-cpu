@@ -92,48 +92,55 @@ class Args(Enum):
        return self.value.code
     
     # ACC_IN => lowest bit ArgsInner.code
-
     
-    ### 0-7 (above PC-L)
+    ### 0-7 (above PC_L)
 
-    INC_PC           = ArgsInner(0, None, None)       # IN (rst delay reg on W_IN)
+    IN_TO_W          = ArgsInner(0, Reg.IN, Reg.W)    # IN TODO HW (add reg) 24
+    W_TO_OUTA        = ArgsInner(1, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg) 25
 
-    W_TO_OUTB        = ArgsInner(1, Reg.W, Reg.OUT_B) # OUT TODO HW (add reg)
+    ######                      (2            )       # IN
+    INC_PC           = ArgsInner(3, None, None)       # OUT
 
-    TMP_TO_W         = ArgsInner(2, Reg.TMP, Reg.W) # IN TODO
-    W_TO_TMP         = ArgsInner(3, Reg.W, Reg.TMP) # OUT TODO
+    PCL_TO_W         = ArgsInner(4, Reg.PC_L, Reg.W)  # IN
+    W_TO_PCL         = ArgsInner(5, Reg.W, Reg.PC_L)  # OUT
 
-    PCL_TO_W         = ArgsInner(4, Reg.PC_L, Reg.W) # IN
-    W_TO_PCL         = ArgsInner(5, Reg.W, Reg.PC_L) # OUT
-
-    PCH_TO_W         = ArgsInner(6, Reg.PC_H, Reg.W) # IN
-    W_TO_PCH         = ArgsInner(7, Reg.W, Reg.PC_H) # OUT
+    PCH_TO_W         = ArgsInner(6, Reg.PC_H, Reg.W)  # IN
+    W_TO_PCH         = ArgsInner(7, Reg.W, Reg.PC_H)  # OUT
 
     ### 8-15 (above ram muxing)
 
-    SP_TO_W          = ArgsInner(8 + 0, Reg.SP, Reg.W) # IN
-    W_TO_SP          = ArgsInner(8 + 1, Reg.W, Reg.SP) # OUT
+    SP_TO_W          = ArgsInner(8 + 0, Reg.SP, Reg.W)          # IN # TODO
+    W_TO_SP          = ArgsInner(8 + 1, Reg.W, Reg.SP)          # OUT # TODO
 
-    REGS_OF_SP_TO_W  = ArgsInner(8 + 2, Reg.REGS_OF_SP, Reg.W)  # IN
-    W_TO_REGS_OF_SP  = ArgsInner(8 + 3, Reg.W,  Reg.REGS_OF_SP) # OUT
+    TMP_TO_W         = ArgsInner(8 + 2, Reg.TMP, Reg.W)         # IN
+    W_TO_TMP         = ArgsInner(8 + 3, Reg.W, Reg.TMP)         # OUT
 
-    IMM_TO_W         = ArgsInner(8 + 4, Reg.IMM, Reg.W) # IN
-    LD_IMM           = ArgsInner(8 + 5, None, None)     # X
+    REGS_OF_SP_TO_W  = ArgsInner(8 + 4, Reg.REGS_OF_SP, Reg.W)  # IN
+    W_TO_REGS_OF_SP  = ArgsInner(8 + 5, Reg.W,  Reg.REGS_OF_SP) # OUT
 
     REGS_OF_IMM_TO_W = ArgsInner(8 + 6, Reg.REGS_OF_IMM, Reg.W) # IN
     W_TO_REGS_OF_IMM = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_IMM) # OUT
 
-    ### 16-23 (not decoded)
+    ### 16-23 (above PC_H)
+    
+    IMM_TO_W         = ArgsInner(16 + 0, Reg.IMM, Reg.W)   # IN
+    LD_IMM           = ArgsInner(16 + 1, None, None)       # OUT
 
-    ### 24-31 (above PC-H)
+    #########                   (16 + 2                  ) # IN
+    W_TO_OUTB        = ArgsInner(16 + 3, Reg.W, Reg.OUT_B) # OUT TODO HW (add reg)
 
-    IN_TO_W          = ArgsInner(2, Reg.IN, Reg.W)    # IN TODO HW (add reg) 24
-    W_TO_OUTA        = ArgsInner(3, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg) 25
+    ######                      (16 + 4            )       # IN
+    RST              = ArgsInner(16 + 5, None, None)       # OUT
+    
+    ######                      (16 + 6            )       # IN
+    NOP              = ArgsInner(16 + 7, None, None)       # OUT
+
+
 
 """Single µstep of an instruction"""
 class Step:
   def __str__(self):
-    if self.rst:
+    if self.args == Args.RST:
        return "RESET"
     if self.alu_op == AluCode.NOP and self.args == Args.PCL_TO_W:
        return "NOP"
@@ -141,12 +148,12 @@ class Step:
     args_string = str(self.args) if self.args else ""
     return f"{op_str:8} {args_string}"
 
-  def __init__(self, args:Args = None, alu_op:AluCode = None, rst:bool = False):
+  def __init__(self, args:Args = None, alu_op:AluCode = None):
     set_defaults = False
 
     # Edge case: reset
-    if rst:
-       assert not (args or alu_op)
+    if args == Args.RST:
+       assert not alu_op
        set_defaults = True
     
     # Edge case: NOP
@@ -173,14 +180,20 @@ class Step:
 
     self.args = args
     self.alu_op = alu_op
-    self.rst = rst
 
   def code(self):
     value = 0
-    value += (0 if self.rst else 1) << 7
-    value +=     self.alu_op.code() << 4
+    value +=     self.alu_op.code() << 5
     value +=       self.args.code() << 0
     return value
+
+class ResetStep(Step):
+    def __init__(self):
+        super().__init__(args=Args.RST)
+
+class NopStep(Step):
+    def __init__(self):
+        super().__init__(args=Args.NOP)
 
 """Full instruction"""
 class Instruction(ABC):
@@ -213,7 +226,7 @@ class Instruction(ABC):
         if pad:
           for flags in range(4):
             for _ in range(16 - len(table[flags])):
-              table[flags].append(Step(rst=True))
+              table[flags].append(ResetStep())
         
         return table
 

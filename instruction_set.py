@@ -43,7 +43,7 @@ class CoreInstruction(Instruction):
       
       # Increment program counter for next instruction
       yield Step(Args.INC_PC)
-      yield Step(rst=True)
+      yield ResetStep()
 
 # Create base ALU instructions
 for wb in [False, True]: #writeback
@@ -79,7 +79,7 @@ class StoreInstruction(Instruction):
       # Writeback & incr PC
       yield Step(Args.fromRegs(Reg.W, self.dst))
       yield Step(Args.INC_PC)
-      yield Step(rst=True)
+      yield ResetStep()
 
 # Create STORE instructions
 for dst in Reg:
@@ -117,7 +117,7 @@ class CondJmpInstruction(Instruction):
             Step(Args.INC_PC),
         ]
       )
-      yield Step(rst=True)
+      yield ResetStep()
 
 instructions.append(CondJmpInstruction("JMP" , if_always))
 instructions.append(CondJmpInstruction("JMPZ", if_zero_flag))
@@ -136,7 +136,7 @@ class NopInstruction(Instruction):
 
     def run(self, flags):
       yield Step(Args.INC_PC)
-      yield Step(rst=True)
+      yield ResetStep()
 
 while len(instructions) < 255:
   instructions.append(NopInstruction())
@@ -152,7 +152,7 @@ class HaltInstruction(Instruction):
 
     def run(self, flags):
       # Don't increment PC -> hang
-      yield Step(rst=True)
+      yield ResetStep()
 
 instructions.append(HaltInstruction())
 
