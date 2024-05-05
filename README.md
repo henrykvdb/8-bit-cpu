@@ -11,12 +11,11 @@ unmarked image on bottom
 
 - 8 bit data, 8/16/.. bit instructions (up to 65.5k)
 - 256B RAM, direct + indirect addressing
-- Up to 65.5k instructions, 256 types of <16 microstep each
+- Up to 65.5k instructions; 256 types, each up to 16 µstep
 - Harvard architecture (to not need bootloader)
 
 ## HW TODO
 
-- Add extra control decoder + hardwire everything
 - Hook up I2C display
 - Test full instruction set
 
