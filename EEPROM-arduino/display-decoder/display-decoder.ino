@@ -51,23 +51,40 @@ const int DISP_VAL_9 = (DISP_VAL_0 - BOTTOM_LEFT) | MIDDLE;
 //const int DISP_VAL_F =  |  |  |  |  | ;
 const int DISP_VALS [10] = {DISP_VAL_0, DISP_VAL_1, DISP_VAL_2, DISP_VAL_3, DISP_VAL_4, DISP_VAL_5, DISP_VAL_6, DISP_VAL_7, DISP_VAL_8, DISP_VAL_9};
 
+// long pow function (avoid double rounding)
+uint32_t lpow(uint32_t base, uint16_t exp)
+{
+    uint32_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
 const unsigned long bus_pin_values[8] = {
-  pow(2, 9),
-  pow(2, 8),
-  pow(2,10),
-  pow(2,11),
-  pow(2,16),
-  pow(2,15),
-  pow(2,13),
-  pow(2,14)
+  lpow(2, 9),
+  lpow(2, 8),
+  lpow(2,10),
+  lpow(2,11),
+  lpow(2,16),
+  lpow(2,15),
+  lpow(2,13),
+  lpow(2,14)
   };
 
 // Select which display to render
 const unsigned long addr_offsets_disp[4] = {
-  0,                    // display 0
-  pow(2,7),             // display 1
-  pow(2,12),            // display 2
-  pow(2,7) + pow(2,12)  // display 3
+  0,                     // display 0
+  lpow(2,7),             // display 1
+  lpow(2,12),            // display 2
+  lpow(2,7) + lpow(2,12) // display 3
   };
 
 void setup()
@@ -120,7 +137,7 @@ void setup()
         writeEEPROM(decoded, DISP_VALS[digit]);
       } else{
         unsigned long decoded_offset = addr_offsets_disp[display_idx];
-        unsigned int power = pow(10, display_idx); 
+        unsigned int power = lpow(10, display_idx); 
         int digit = (i / power) % 10;
         if (digit > 0 || encountered_digit){
           // Non zero or zero but not leading
@@ -169,7 +186,7 @@ void bypassSDP()
 /* Sets all the pins for reading from the EEPROM. */
 void setPinsToDefaultForReading()
 {
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
   {
     pinMode(pin, INPUT);
   }
@@ -194,7 +211,7 @@ void setPinsToDefaultForReading()
 /* Sets all the pins for writing to the EEPROM. */
 void setPinsToDefaultForWriting()
 {
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++) // for each data pin
   {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
@@ -219,7 +236,7 @@ void setPinsToDefaultForWriting()
 
 /* Shift in a new address and output it => Need to toggle DFF CLK after to make visible
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-void shiftAddress(unsigned long address)
+void shiftAddress(uint32_t address)
 {
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address));       // Outputs XXXX XXXX (bits 0-7)
   shiftOut(SHIFT_DATA, SHIFT_CLK, LSBFIRST, (address >> 8));  // Outputs XXXX XXXX (bits 8-15)
@@ -228,7 +245,7 @@ void shiftAddress(unsigned long address)
 
 /* Reads from the EEPROM. 
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-byte readEEPROM(unsigned long address)
+byte readEEPROM(uint32_t address)
 {
   // Set up the address
   shiftAddress(address);
@@ -239,7 +256,7 @@ byte readEEPROM(unsigned long address)
 
   // Perform the read (reverse)
   byte data = 0;
-  for (int pin = EEPROM_D7; pin >= EEPROM_D0; pin--){
+  for (uint16_t pin = EEPROM_D7; pin >= EEPROM_D0; pin--){
     data = (data << 1) + digitalRead(pin);
   }
   return data;
@@ -248,7 +265,7 @@ byte readEEPROM(unsigned long address)
 /* Start write to the EEPROM
  * Does not finish it in order to let the next writeEEPROM() call or an endWriting() finish it.
  * Note: Call setPinsToDefaultForReading() before calling this function. */
-void writeEEPROM(unsigned long address, byte data)
+void writeEEPROM(uint32_t address, byte data)
 {
   // Set up the address
   shiftAddress(address);
@@ -261,7 +278,7 @@ void writeEEPROM(unsigned long address, byte data)
   digitalWrite(DFF_CLK, LOW);
   
   // Set up the data
-  for (int pin = EEPROM_D0; pin <= EEPROM_D7; pin++){
+  for (uint16_t pin = EEPROM_D0; pin <= EEPROM_D7; pin++){
     digitalWrite(pin, data & 1);
     data = data >> 1;
   }
@@ -290,12 +307,12 @@ void endWriting()
  * Note: Call setPinsToDefaultForReading() before calling this function. */
 void print256Bytes()
 {
-  unsigned long baseAddr;
+  uint32_t baseAddr;
 
   byte data[16];
   for (baseAddr = 0UL; baseAddr < 256UL; baseAddr += 16UL) // for every 16 addresses in the EEPROM
   {
-    for (unsigned int offset = 0U; offset < 16U; offset++) // for each address within the current set of 16 addresses
+    for (uint16_t offset = 0U; offset < 16U; offset++) // for each address within the current set of 16 addresses
     {
       data[offset] = readEEPROM(baseAddr + offset);
     }
