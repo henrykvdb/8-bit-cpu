@@ -24,7 +24,7 @@ class AluCode(Enum):
     WADD    = 0
     WSUB    = 1
     WNEG    = 2
-    NOP     = 3
+    TODOINC     = 3
     WAND    = 4
     WOR     = 5
     WXOR    = 6
@@ -65,6 +65,10 @@ class Args(Enum):
             raise ValueError(f"Register {src} can not be used as src")
           if dst and not dst.value.can_dst:
             raise ValueError(f"Register {dst} can not be used as dst")
+          if code % 2 == 0:
+             assert dst == Reg.W
+          else:
+             assert src == Reg.W
 
           self.code = code
           self.src = src
@@ -98,8 +102,8 @@ class Args(Enum):
     IN_TO_W          = ArgsInner(0, Reg.IN, Reg.W)    # IN TODO HW (add reg) 24
     W_TO_OUTA        = ArgsInner(1, Reg.W, Reg.OUT_A) # OUT TODO HW (wire reg) 25
 
-    ######                      (2            )       # IN
-    INC_PC           = ArgsInner(3, None, None)       # OUT
+    ######                      (2             )      # IN
+    INC_PC           = ArgsInner(3, Reg.W, None)      # OUT
 
     PCL_TO_W         = ArgsInner(4, Reg.PC_L, Reg.W)  # IN
     W_TO_PCL         = ArgsInner(5, Reg.W, Reg.PC_L)  # OUT
@@ -124,16 +128,16 @@ class Args(Enum):
     ### 16-23 (above PC_H)
     
     IMM_TO_W         = ArgsInner(16 + 0, Reg.IMM, Reg.W)   # IN
-    LD_IMM           = ArgsInner(16 + 1, None, None)       # OUT
+    LD_IMM           = ArgsInner(16 + 1, Reg.W, None)      # OUT
 
     #########                   (16 + 2                  ) # IN
     W_TO_OUTB        = ArgsInner(16 + 3, Reg.W, Reg.OUT_B) # OUT TODO HW (add reg)
 
-    ######                      (16 + 4            )       # IN
-    RST              = ArgsInner(16 + 5, None, None)       # OUT
+    ######                      (16 + 4             )      # IN
+    RST              = ArgsInner(16 + 5, Reg.W, None)      # OUT
     
-    ######                      (16 + 6            )       # IN
-    NOP              = ArgsInner(16 + 7, None, None)       # OUT
+    ######                      (16 + 6             )      # IN
+    NOP              = ArgsInner(16 + 7, Reg.W, None)      # OUT
 
 
 
@@ -142,41 +146,19 @@ class Step:
   def __str__(self):
     if self.args == Args.RST:
        return "RESET"
-    if self.alu_op == AluCode.NOP and self.args == Args.PCL_TO_W:
+    if self.alu_op == AluCode.WADD and self.args == Args.NOP:
        return "NOP"
     op_str = str(self.alu_op) if self.alu_op else ""
     args_string = str(self.args) if self.args else ""
     return f"{op_str:8} {args_string}"
 
   def __init__(self, args:Args = None, alu_op:AluCode = None):
-    set_defaults = False
-
-    # Edge case: reset
-    if args == Args.RST:
-       assert not alu_op
-       set_defaults = True
-    
-    # Edge case: NOP
-    if alu_op == AluCode.NOP:
-       assert not args
-       set_defaults = True
-    
-    # Edge case: INC_PC
-    if args in [Args.INC_PC, Args.LD_IMM]:
-       assert not alu_op
-       set_defaults = True
-    
-    # Set defaults / Do sanity checks
-    if set_defaults:
-       alu_op = alu_op or AluCode.NOP
-       args = args or Args.PCL_TO_W
+    assert args is not None
+    if (args.value.dst == Reg.W):
+      assert alu_op
     else:
-       assert args is not None
-       if (args.value.dst == Reg.W):
-          assert alu_op is not None
-       else:
-          alu_op = alu_op or AluCode.NOP
-          assert alu_op == AluCode.NOP
+      alu_op = alu_op or AluCode.WADD
+      assert alu_op == AluCode.WADD
 
     self.args = args
     self.alu_op = alu_op
@@ -245,9 +227,9 @@ def balanced_yield(branch_idx, branches):
     max_len = max(len(x) for x in branches )
     nops = max_len - len(branches[branch_idx])
     for x in range(nops):
-        yield Step(alu_op=AluCode.NOP)
+        yield Step(args=Args.NOP)
     
-def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=Step(alu_op=AluCode.NOP)):
+def if_flag(flags, _if00=None, _if01=None, _if10=None, _if11=None, _else=Step(args=Args.NOP)):
     branches = [_if00, _if01, _if10, _if11]
     for i in range(4):
         if branches[i] == None:

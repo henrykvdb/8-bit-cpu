@@ -8,6 +8,11 @@ def get_instr_code(name: str, arg: str):
       return idx
   raise Exception(f"Instruction '{name} {arg}' not found")
 
+def get_instr_name(code: int):
+  assert code < 256
+  instr = instructions[code]
+  return f"{instr.name} {instr.arg}"
+
 def get_instr(name: str, arg: str):
   return instructions[get_instr_code(name, arg)]
 
@@ -54,7 +59,7 @@ for wb in [False, True]: #writeback
       if not src.value.can_src: continue
       if wb and not src.value.can_dst: continue
       if wb and alu_code == AluCode.WLOAD: continue
-      if alu_code == AluCode.NOP: continue
+      if alu_code == AluCode.TODOINC: continue # TODO
 
       # Create instruction
       #print(src)
@@ -167,7 +172,10 @@ instructions.append(HaltInstruction())
 # Make sure they all run without errors
 for instr in instructions:
   for flags in range(4):
-    instr.run(flags)
+    # Run all steps ;)
+    for step_idx, step in enumerate(instr.run(flags)):
+      # First step should load W, to clear reset bit
+      pass #if step_idx == 0: assert
 
 # Make sure they are unique (except NOP)
 for idx, instr in enumerate(instructions):
