@@ -40,6 +40,7 @@ class Reg(Enum):
         self.can_dst = dst
     
     def __str__(self):
+        # Regex replace _OF_ notation by brackets []
         name = re.sub(r"_OF_(.*)", r"[\g<1>", self.name)
         name = re.sub(r"\[([^_]*)$", r"[\g<1>]", name)
         return re.sub(r"\[([^_]*)_", r"[\g<1>]_", name)
