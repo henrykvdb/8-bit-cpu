@@ -18,56 +18,60 @@ while True:
   reg[2] = W
 """
 def fibonacci():
-    yield from display_pc_x8()
-
-    # reg[1] = 0
-    yield get_instr_code("WLOAD", "IMM")
-    yield "0"
-    yield get_instr_code("WSTORE", "REGS[IMM]")
-    yield "1"
-
-    # reg[2] = 1
-    yield get_instr_code("WLOAD", "IMM")
-    yield "1"
-    yield get_instr_code("WSTORE", "REGS[IMM]")
-    yield "2"
-
-    #while True:
-    #    yield get_instr_code("WSTORE", "OUT_A")
+    yield from reference_seq()
 
     while True:
-        # reg[1] += reg[2]
-        yield get_instr_code("WSTORE", "OUT_A")
-        yield get_instr_code("WADD", "REGS[IMM]")
-        yield "1"
+        # reg[1] = 0
+        yield get_instr_code("WLOAD", "IMM")
+        yield "0"
         yield get_instr_code("WSTORE", "REGS[IMM]")
         yield "1"
-
-        # reg[2] += reg[1]
         yield get_instr_code("WSTORE", "OUT_A")
-        yield get_instr_code("WADD", "REGS[IMM]")
-        yield "2"
+
+        # reg[2] = 1
+        yield get_instr_code("WLOAD", "IMM")
+        yield "1"
         yield get_instr_code("WSTORE", "REGS[IMM]")
         yield "2"
+        yield get_instr_code("WSTORE", "OUT_A")
+
+        for _ in range(6): # TODO replace by JMP
+            # reg[1] += reg[2]
+            yield get_instr_code("WADD", "REGS[IMM]")
+            yield "1"
+            yield get_instr_code("WSTORE", "REGS[IMM]")
+            yield "1"
+            yield get_instr_code("WSTORE", "OUT_A")
+
+            # reg[2] += reg[1]
+            yield get_instr_code("WADD", "REGS[IMM]")
+            yield "2"
+            yield get_instr_code("WSTORE", "REGS[IMM]")
+            yield "2"
+            yield get_instr_code("WSTORE", "OUT_A")
 
 
 
-def display_pc_x8():
+def reference_seq_pc():
   for _ in range(8):
     yield get_instr_code("WLOAD", "PC_L")
     yield get_instr_code("WSTORE", "OUT_A")
-   
+
+def reference_seq():
+  for i in reversed(range(10)):
+    yield get_instr_code("WLOAD", "IMM")
+    yield str(i)
+    yield get_instr_code("WSTORE", "OUT_A")
 
 def program_sp_testing():
   while True:
     yield get_instr_code("WLOAD", "PC_L")
     yield get_instr_code("WSTORE", "SP")
-    yield get_instr_code("WSTORE", "REGS[SP]")
-   
+    yield get_instr_code("WSTORE", "REGS[SP]")   
 
 def program_imm_testing():
   i = 0
-  yield from display_pc_x8()
+  yield from reference_seq()
   while True:
     yield get_instr_code("WLOAD", "IMM")
     yield (2**i) # IMM
