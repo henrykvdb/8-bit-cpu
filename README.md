@@ -4,7 +4,7 @@
 Welcome to the github repo for my 8 bit breadboard CPU. I will add info and documentation as the project progresses.
 
 ![image](./misc/image-context.jpg)
-unmarked image on bottom
+unmarked image on bottom (04/2024)
 
 
 ## Features
@@ -30,6 +30,6 @@ unmarked image on bottom
 
 ## State
 
-Current state: all connectivity tested (with some jumper wires still). Basic instructions functional, flags not connected to control.
+Current state: all connectivity tested (with some jumper wires still). Basic instructions (+fibonacci program) functional, flags not connected to control yet.
 
 ![image](./misc/image.jpg)
