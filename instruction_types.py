@@ -120,11 +120,11 @@ class Args(Enum):
     TMP_TO_W         = ArgsInner(8 + 2, Reg.TMP, Reg.W)         # IN
     W_TO_TMP         = ArgsInner(8 + 3, Reg.W, Reg.TMP)         # OUT
 
-    REGS_OF_SP_TO_W  = ArgsInner(8 + 4, Reg.REGS_OF_SP, Reg.W)  # IN
-    W_TO_REGS_OF_SP  = ArgsInner(8 + 5, Reg.W,  Reg.REGS_OF_SP) # OUT
+    REGS_OF_IMM_TO_W = ArgsInner(8 + 4, Reg.REGS_OF_IMM, Reg.W) # IN
+    W_TO_REGS_OF_IMM = ArgsInner(8 + 5, Reg.W, Reg.REGS_OF_IMM) # OUT
 
-    REGS_OF_IMM_TO_W = ArgsInner(8 + 6, Reg.REGS_OF_IMM, Reg.W) # IN
-    W_TO_REGS_OF_IMM = ArgsInner(8 + 7, Reg.W, Reg.REGS_OF_IMM) # OUT
+    REGS_OF_SP_TO_W  = ArgsInner(8 + 6, Reg.REGS_OF_SP, Reg.W)  # IN
+    W_TO_REGS_OF_SP  = ArgsInner(8 + 7, Reg.W,  Reg.REGS_OF_SP) # OUT
 
     ### 16-23 (above PC_H)
     
